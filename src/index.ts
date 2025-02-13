@@ -19,7 +19,14 @@ cloudinary.config({
 
 const app = express();
 app.use(express.json());
-app.use(cors());
+// app.use(cors());
+app.use(
+  cors({
+    origin: "https://mern-food-ordering-app-frontend-6mth.onrender.com", // Allow frontend URL
+    methods: "GET, POST, PUT, DELETE",
+    credentials: true,
+  })
+);
 
 app.get("/health", async (_req: Request, res: Response) => {
   res.send({ message: "Health OK!" });
