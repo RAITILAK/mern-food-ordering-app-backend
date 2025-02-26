@@ -1,6 +1,50 @@
 import { Request, Response } from "express";
 import { parse } from "path";
 import Restaurant from "../models/restaurant";
+import mongoose from "mongoose";
+
+//debug
+// const getRestaurant = async (req: Request, res: Response) => {
+//   try {
+//     const restaurantId = req.params.restaurantId;
+
+//     const restaurant = await Restaurant.findById(restaurantId);
+//     if (!restaurant) {
+//       return res.status(404).json({ message: "Restaurant not found!" });
+//     }
+//     res.json(restaurant);
+//   } catch (error) {
+//     console.log(error);
+//     res.status(500).json({ message: "something went wrong" });
+//   }
+// };
+
+//
+
+const getRestaurant = async (req: Request, res: Response) => {
+  try {
+    const restaurantId = req.params.restaurantId;
+
+    // ✅ Validate restaurantId
+    if (!restaurantId) {
+      return res.status(400).json({ message: "Restaurant ID is required" });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(restaurantId)) {
+      return res.status(400).json({ message: "Invalid Restaurant ID" });
+    }
+
+    const restaurant = await Restaurant.findById(restaurantId);
+    if (!restaurant) {
+      return res.status(404).json({ message: "Restaurant not found!" });
+    }
+
+    res.json(restaurant);
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "Something went wrong" });
+  }
+};
 
 const searchRestaurant = async (req: Request, res: Response) => {
   try {
@@ -77,4 +121,5 @@ const searchRestaurant = async (req: Request, res: Response) => {
 
 export default {
   searchRestaurant,
+  getRestaurant,
 };
