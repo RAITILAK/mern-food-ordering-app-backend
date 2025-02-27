@@ -1,7 +1,10 @@
 import { Request, Response } from "express";
-import Stripe from "stripe";
+// import * as Stripe from "stripe";
+
 import Restaurant, { MenuItemType } from "../models/restaurant";
 import Order from "../models/order";
+// import Stripe from "stripe";
+import Stripe from "stripe";
 
 if (!process.env.STRIPE_API_KEY) {
   throw new Error("Stripe API key is missing in environment variables.");
