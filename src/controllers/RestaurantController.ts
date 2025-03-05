@@ -3,24 +3,6 @@ import { parse } from "path";
 import Restaurant from "../models/restaurant";
 import mongoose from "mongoose";
 
-//debug
-// const getRestaurant = async (req: Request, res: Response) => {
-//   try {
-//     const restaurantId = req.params.restaurantId;
-
-//     const restaurant = await Restaurant.findById(restaurantId);
-//     if (!restaurant) {
-//       return res.status(404).json({ message: "Restaurant not found!" });
-//     }
-//     res.json(restaurant);
-//   } catch (error) {
-//     console.log(error);
-//     res.status(500).json({ message: "something went wrong" });
-//   }
-// };
-
-//
-
 const getRestaurant = async (req: Request, res: Response) => {
   try {
     const restaurantId = req.params.restaurantId;

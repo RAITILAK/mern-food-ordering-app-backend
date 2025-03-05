@@ -29,7 +29,7 @@ app.use(
       "https://mern-food-ordering-app-frontend-6mth.onrender.com", // Production frontend
       "http://localhost:5173", // Local frontend (Vite default port)
     ],
-    methods: ["GET", "POST", "PUT", "DELETE"], // Ensure methods are in an array
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"], // Ensure methods are in an array
     credentials: true,
   })
 );

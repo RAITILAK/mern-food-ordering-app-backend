@@ -1,151 +1,42 @@
-// import Restaurant from "../models/restaurant";
-// import { Request, Response } from "express";
-// import mongoose from "mongoose";
-// import cloudinary from "cloudinary";
-// import { ObjectId } from "mongodb";
-
-// const getMyRestaurant = async (req: Request, res: Response) => {
-//   try {
-//     console.log("User ID:", req.userId); // Debugging
-//     const userId = new ObjectId(req.userId);
-
-//     const restaurant = await Restaurant.findOne({ user: req.userId });
-//     console.log("Restaurant:", restaurant); // Debugging
-//     if (!restaurant) {
-//       return res.status(404).json({ message: "restaurant not found" });
-//     }
-//     res.json(restaurant);
-//   } catch (error) {
-//     console.log("error", error);
-//     res.status(500).json({ message: "Error fetching restaurant" });
-//   }
-// };
-
-// const createMyRestaurant = async (req: Request, res: Response) => {
-//   try {
-//     console.log("📌 Incoming request to create restaurant");
-
-//     // Debugging: Log request body and file
-//     console.log("Request Body:", req.body);
-//     console.log("User ID:", req.userId);
-//     console.log("Uploaded File:", req.file);
-
-//     // Ensure the image file is uploaded
-//     if (!req.file) {
-//       console.error("⚠️ No file uploaded");
-//       return res.status(400).json({ message: "Restaurant image is required" });
-//     }
-
-//     // Parse menuItems if it's a JSON string
-//     if (typeof req.body.menuItems === "string") {
-//       try {
-//         req.body.menuItems = JSON.parse(req.body.menuItems);
-//       } catch (error) {
-//         console.error("⚠️ Invalid menuItems format:", error);
-//         return res.status(400).json({ message: "Invalid menuItems format" });
-//       }
-//     }
-
-//     // Validate menuItems
-//     if (!Array.isArray(req.body.menuItems)) {
-//       return res.status(400).json({ message: "menuItems must be an array" });
-//     }
-
-//     for (const item of req.body.menuItems) {
-//       if (!item.name || !item.price) {
-//         return res
-//           .status(400)
-//           .json({ message: "Each menu item must have a name and price" });
-//       }
-//     }
-
-//     // Check if the user already has a restaurant
-//     const existingRestaurant = await Restaurant.findOne({ user: req.userId });
-//     if (existingRestaurant) {
-//       return res
-//         .status(409)
-//         .json({ message: "User restaurant already exists" });
-//     }
-
-//     // Upload image to Cloudinary
-//     console.log("⏳ Uploading image to Cloudinary...");
-//     const base64Image = Buffer.from(req.file.buffer).toString("base64");
-//     const dataURI = `data:${req.file.mimetype};base64,${base64Image}`;
-
-//     const uploadResponse = await cloudinary.v2.uploader.upload(dataURI);
-//     console.log("✅ Cloudinary Upload Successful:", uploadResponse.url);
-
-//     // Create and save the restaurant
-//     const restaurant = new Restaurant({
-//       ...req.body,
-//       imageUrl: uploadResponse.url,
-//       user: new mongoose.Types.ObjectId(req.userId),
-//       lastUpdated: new Date(),
-//     });
-
-//     await restaurant.save();
-//     console.log("✅ Restaurant created successfully:", restaurant);
-
-//     res.status(201).send(restaurant);
-//   } catch (error) {
-//     console.error("❌ Unexpected Server Error:", error);
-//     res.status(500).json({ message: "Something went wrong!" });
-//   }
-// };
-
-// const updateMyRestaurant = async (req: Request, res: Response) => {
-//   try {
-//     const restaurant = await Restaurant.findOne({
-//       user: req.userId,
-//     });
-
-//     if (!restaurant) {
-//       return res.status(404).json({ message: "restaurant not found!" });
-//     }
-
-//     restaurant.restaurantName = req.body.restaurantName;
-//     restaurant.city = req.body.city;
-//     restaurant.country = req.body.country;
-//     restaurant.deliveryPrice = req.body.deliveryPrice;
-//     restaurant.estimatedDeliveryTime = req.body.estimatedDeliveryTime;
-//     restaurant.cuisines = req.body.cuisines;
-//     restaurant.menuItems = req.body.menuItems;
-//     restaurant.lastUpdated = new Date();
-
-//     if(req.file){
-
-//     }
-
-//   } catch (error) {
-//     console.log("Error", error);
-//     res.status(500).json({ message: "Unable to update restaurant!" });
-//   }
-// };
-// export default {
-//   createMyRestaurant,
-//   getMyRestaurant,
-// };
-
 import Restaurant from "../models/restaurant";
 import { Request, Response } from "express";
+import { AuthenticatedRequest } from "../middleware/auth";
 import mongoose from "mongoose";
 import cloudinary from "cloudinary";
-import { ObjectId } from "mongodb";
+import Order from "../models/order";
 
-const getMyRestaurant = async (req: Request, res: Response) => {
+const getMyRestaurant = async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const userId = new ObjectId(req.userId);
-    const restaurant = await Restaurant.findOne({ user: req.userId });
-    if (!restaurant) {
-      return res.status(404).json({ message: "Restaurant not found" });
+    const userId = req.userId;
+    console.log("🔍 Received userId:", userId);
+
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized: No user ID" });
     }
-    res.json(restaurant);
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      console.error("❌ Invalid ObjectId format:", userId);
+      return res.status(400).json({ error: "Invalid user ID" });
+    }
+
+    const restaurant = await Restaurant.findOne({
+      user: new mongoose.Types.ObjectId(userId),
+    });
+    console.log("🔍 Restaurant found:", restaurant);
+
+    if (!restaurant) {
+      console.error("❌ No restaurant found for user:", userId);
+      return res.status(404).json({ error: "Restaurant not found" });
+    }
+
+    res.status(200).json(restaurant);
   } catch (error) {
-    res.status(500).json({ message: "Error fetching restaurant" });
+    console.error("🔥 Server error in getMyRestaurant:", error);
+    res.status(500).json({ error: "Internal Server Error" });
   }
 };
 
-const createMyRestaurant = async (req: Request, res: Response) => {
+const createMyRestaurant = async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.file) {
       return res.status(400).json({ message: "Restaurant image is required" });
@@ -178,16 +69,12 @@ const createMyRestaurant = async (req: Request, res: Response) => {
         .json({ message: "User restaurant already exists" });
     }
 
-    // const base64Image = Buffer.from(req.file.buffer).toString("base64");
-    // const dataURI = `data:${req.file.mimetype};base64,${base64Image}`;
-    // const uploadResponse = await cloudinary.v2.uploader.upload(dataURI);
-
     const imageUrl = await uploadImage(req.file as Express.Multer.File);
 
     const restaurant = new Restaurant({
       ...req.body,
       imageUrl: imageUrl,
-      user: new mongoose.Types.ObjectId(req.userId),
+      user: new mongoose.Types.ObjectId(req.userId), // Corrected to 'user'
       lastUpdated: new Date(),
     });
 
@@ -198,7 +85,7 @@ const createMyRestaurant = async (req: Request, res: Response) => {
   }
 };
 
-const updateMyRestaurant = async (req: Request, res: Response) => {
+const updateMyRestaurant = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const restaurant = await Restaurant.findOne({ user: req.userId });
 
@@ -227,6 +114,62 @@ const updateMyRestaurant = async (req: Request, res: Response) => {
   }
 };
 
+const getMyRestaurantOrders = async (
+  req: AuthenticatedRequest,
+  res: Response
+) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const restaurant = await Restaurant.findOne({ user: req.userId }); // Corrected to 'user'
+    if (!restaurant) {
+      return res.status(404).json({ message: "Restaurant not found!" });
+    }
+
+    const orders = await Order.find({ restaurant: restaurant._id })
+      .populate("restaurant")
+      .populate("user");
+
+    res.json(orders);
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "Something went wrong" });
+  }
+};
+
+const updateOrderStatus = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { orderId } = req.params;
+    const { status } = req.body;
+
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({ message: "order not found!" });
+    }
+
+    const restaurant = await Restaurant.findById(order.restaurant);
+
+    if (!restaurant) {
+      return res.status(404).json({ message: "Restaurant not found" });
+    }
+
+    // Check if restaurant.user exists before accessing _id
+    if (restaurant.user && restaurant.user._id.toString() !== req.userId) {
+      return res.status(401).send();
+    }
+
+    order.status = status;
+    await order.save();
+
+    res.status(200).json(order);
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "unable to update order status" });
+  }
+};
+
 const uploadImage = async (file: Express.Multer.File) => {
   const base64Image = Buffer.from(file.buffer).toString("base64");
   const dataURI = `data:${file.mimetype};base64,${base64Image}`;
@@ -239,4 +182,6 @@ export default {
   createMyRestaurant,
   getMyRestaurant,
   updateMyRestaurant,
+  getMyRestaurantOrders,
+  updateOrderStatus,
 };

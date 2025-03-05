@@ -1,9 +1,7 @@
-import { Request, Response } from "express";
-// import * as Stripe from "stripe";
-
+import { Response } from "express";
+import { AuthenticatedRequest } from "../middleware/auth"; // Import AuthenticatedRequest
 import Restaurant, { MenuItemType } from "../models/restaurant";
 import Order from "../models/order";
-// import Stripe from "stripe";
 import Stripe from "stripe";
 
 if (!process.env.STRIPE_API_KEY) {
@@ -12,6 +10,20 @@ if (!process.env.STRIPE_API_KEY) {
 const STRIPE = new Stripe(process.env.STRIPE_API_KEY);
 const FRONTEND_URL = process.env.FRONTEND_URL as string;
 const STRIPE_ENDPOINT_SECRET = process.env.STRIPE_WEBHOOK_SECRET as string;
+
+const getMyOrder = async (req: AuthenticatedRequest, res: Response) => {
+  // Updated type
+  try {
+    const orders = await Order.find({ user: req.userId })
+      .populate("restaurant")
+      .populate("user");
+
+    res.json(orders);
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "something went wrong" });
+  }
+};
 
 type CheckoutSessionRequest = {
   cartItems: {
@@ -28,7 +40,8 @@ type CheckoutSessionRequest = {
   restaurantId: string;
 };
 
-const stripeWebhookHandler = async (req: Request, res: Response) => {
+const stripeWebhookHandler = async (req: any, res: Response) => {
+  //req type any because of stripe webhook
   let event;
   try {
     const sig = req.headers["stripe-signature"];
@@ -57,7 +70,11 @@ const stripeWebhookHandler = async (req: Request, res: Response) => {
   res.status(200).send();
 };
 
-const createCheckoutSession = async (req: Request, res: Response) => {
+const createCheckoutSession = async (
+  req: AuthenticatedRequest,
+  res: Response
+) => {
+  // Updated type
   try {
     const CheckoutSessionRequest: CheckoutSessionRequest = req.body;
 
@@ -192,4 +209,5 @@ const createSession = async (
 export default {
   createCheckoutSession,
   stripeWebhookHandler,
+  getMyOrder,
 };

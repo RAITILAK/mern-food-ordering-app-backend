@@ -3,15 +3,13 @@ import { auth } from "express-oauth2-jwt-bearer";
 import jwt from "jsonwebtoken";
 import User from "../models/user";
 
-declare global {
-  namespace Express {
-    interface Request {
-      userId: string;
-      auth0Id: string;
-    }
-  }
+// ✅ Extend Express Request to properly include `userId` and `auth0Id`
+export interface AuthenticatedRequest extends Request {
+  userId?: string;
+  auth0Id?: string;
 }
 
+// ✅ Use extended type in middleware
 export const jwtCheck = auth({
   audience: process.env.AUTH0_AUDIENCE,
   issuerBaseURL: process.env.AUTH0_ISSUER_BASE_URL,
@@ -19,7 +17,7 @@ export const jwtCheck = auth({
 });
 
 export const jwtParse = async (
-  req: Request,
+  req: AuthenticatedRequest, // ✅ Use extended type here
   res: Response,
   next: NextFunction
 ) => {
@@ -33,6 +31,10 @@ export const jwtParse = async (
 
   try {
     const decoded = jwt.decode(token) as jwt.JwtPayload;
+    if (!decoded || !decoded.sub) {
+      return res.sendStatus(401);
+    }
+
     const auth0Id = decoded.sub;
 
     const user = await User.findOne({ auth0Id });
@@ -41,10 +43,11 @@ export const jwtParse = async (
       return res.sendStatus(401);
     }
 
-    req.auth0Id = auth0Id as string;
-    req.userId = user._id.toString();
+    req.auth0Id = auth0Id; // ✅ Assigning auth0Id
+    req.userId = user._id.toString(); // ✅ Assigning userId
     next();
   } catch (error) {
+    console.error("JWT Parsing Error:", error);
     return res.sendStatus(401);
   }
 };

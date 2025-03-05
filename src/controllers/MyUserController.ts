@@ -1,50 +1,94 @@
-import { Request, Response } from "express";
+import { RequestHandler, Response } from "express";
+import { AuthenticatedRequest } from "../middleware/auth"; // ✅ Use AuthenticatedRequest
 import User from "../models/user";
 
-const getCurrentUser = async (req: Request, res: Response) => {
+const getCurrentUser: RequestHandler = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
   try {
-    const currentUser = await User.findOne({ _id: req.userId });
+    if (!req.userId) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
 
+    const currentUser = await User.findById(req.userId);
     if (!currentUser) {
-      return res.status(404).json({ message: "User not found" });
+      res.status(404).json({ message: "User not found" });
+      return;
     }
 
     res.json(currentUser);
   } catch (error) {
-    console.log(error);
-    return res.status(500).json({ message: "Somethin went wrong" });
+    console.error("Error fetching user:", error);
+    res.status(500).json({ message: "Something went wrong" });
   }
 };
 
-const createCurrentUser = async (req: Request, res: Response) => {
+/**
+ * ✅ Create a new user
+ */
+
+const createCurrentUser: RequestHandler = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
   try {
-    //1. check if the user exists
-    const { auth0Id } = req.body;
+    console.log("Raw request body:", req.body);
+
+    const { auth0Id, email } = req.body as { auth0Id?: string; email?: string };
+
+    console.log("Parsed auth0Id:", auth0Id);
+    console.log("Parsed email:", email);
+
+    if (!auth0Id) {
+      res.status(400).json({ error: "Auth0 ID is missing" });
+      return; // No need to return res.status, just return
+    }
+
+    if (!email) {
+      res.status(400).json({ error: "Email is missing" });
+      return; // No need to return res.status, just return
+    }
+
     const existingUser = await User.findOne({ auth0Id });
 
     if (existingUser) {
-      return res.status(200).send();
+      res.status(200).send();
+      return; // No need to return res.status, just return
     }
 
-    //2. create user if it doesn't exist
-    const newUser = new User(req.body);
+    const newUser = new User({ auth0Id, email });
     await newUser.save();
 
-    //3. return the user object to the calling client
-    res.status(201).json(newUser.toObject());
+    res.status(201).json(newUser);
   } catch (error) {
-    console.log(error);
+    console.error("Error creating user:", error);
     res.status(500).json({ message: "Error creating user" });
   }
 };
 
-const updateCurrentUser = async (req: Request, res: Response) => {
+/**
+ * ✅ Update current user
+ */
+const updateCurrentUser: RequestHandler = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
   try {
+    if (!req.userId) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
+    console.log("Request body:", req.body);
+
     const { name, addressLine1, country, city } = req.body;
     const user = await User.findById(req.userId);
 
     if (!user) {
-      return res.status(404).json({ message: "User not found!" });
+      res.status(404).json({ message: "User not found!" });
+      return;
     }
 
     user.name = name;
@@ -54,12 +98,13 @@ const updateCurrentUser = async (req: Request, res: Response) => {
 
     await user.save();
 
-    res.send(user);
+    res.json(user);
   } catch (error) {
-    console.log(error);
+    console.error("Error updating user:", error);
     res.status(500).json({ message: "Error updating user" });
   }
 };
+
 export default {
   createCurrentUser,
   updateCurrentUser,
